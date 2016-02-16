@@ -411,10 +411,11 @@ module JSON
       end
 
       def parse(s)
+        handled_errors = defined?(Oj) ? [Oj::ParseError] : []
         if defined?(MultiJson)
           begin
             MultiJson.respond_to?(:adapter) ? MultiJson.load(s) : MultiJson.decode(s)
-          rescue MultiJson::ParseError => e
+          rescue *(handled_errors << MultiJson::ParseError) => e
             raise JSON::Schema::JsonParseError.new(e.message)
           end
         else
@@ -422,7 +423,7 @@ module JSON
           when 'json'
             begin
               JSON.parse(s, :quirks_mode => true)
-            rescue JSON::ParserError => e
+            rescue *(handled_errors << JSON::ParserError) => e
               raise JSON::Schema::JsonParseError.new(e.message)
             end
           when 'yajl'
