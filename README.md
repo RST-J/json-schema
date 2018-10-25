@@ -1,3 +1,4 @@
+[![Gem Version](https://badge.fury.io/rb/json-schema.svg)](https://badge.fury.io/rb/json-schema)
 [![Travis](https://travis-ci.org/ruby-json-schema/json-schema.svg?branch=master)](https://travis-ci.org/ruby-json-schema/json-schema)
 [![Code Climate](https://codeclimate.com/github/ruby-json-schema/json-schema/badges/gpa.svg)](https://codeclimate.com/github/ruby-json-schema/json-schema)
 
@@ -256,6 +257,24 @@ begin
 rescue TypeError => e
   e.message
 end
+
+#
+# with the `:clear_cache` option set to true, the internal cache of schemas is
+# cleared after validation (otherwise schemas are cached for efficiency)
+#
+
+File.write("schema.json", v2_schema.to_json)
+
+# => true
+JSON::Validator.validate("schema.json", {})
+
+File.write("schema.json", schema.to_json)
+
+# => true
+JSON::Validator.validate("schema.json", {}, :clear_cache => true)
+
+# => false
+JSON::Validator.validate("schema.json", {})
 ```
 
 Extending Schemas
@@ -272,17 +291,17 @@ class BitwiseAndAttribute < JSON::Schema::Attribute
   def self.validate(current_schema, data, fragments, processor, validator, options = {})
     if data.is_a?(Integer) && data & current_schema.schema['bitwise-and'].to_i == 0
       message = "The property '#{build_fragment(fragments)}' did not evaluate  to true when bitwise-AND'd with  #{current_schema.schema['bitwise-or']}"
-      raise JSON::Schema::ValidationError.new(message, fragments, current_schema)
+      validation_error(processor, message, fragments, current_schema, self, options[:record_errors])
     end
   end
 end
 
-class ExtendedSchema < JSON::Schema::Validator
+class ExtendedSchema < JSON::Schema::Draft3
   def initialize
     super
-    extend_schema_definition("http://json-schema.org/draft-03/schema#")
     @attributes["bitwise-and"] = BitwiseAndAttribute
-    @uri = URI.parse("http://test.com/test.json")
+    @uri = JSON::Util::URI.parse("http://test.com/test.json")
+    @names = ["http://test.com/test.json"]
   end
 
   JSON::Validator.register_validator(self.new)
@@ -354,6 +373,33 @@ schema = {
   }
 }
 errors = JSON::Validator.fully_validate(schema, {"a" => "23"})
+```
+
+Validating a JSON Schema
+------------------------
+
+To validate that a JSON Schema conforms to the JSON Schema standard,
+you need to validate your schema against the metaschema for the appropriate
+JSON Schema Draft. All of the normal validation methods can be used
+for this. First retrieve the appropriate metaschema from the internal
+cache (using `JSON::Validator.validator_for_name()` or
+`JSON::Validator.validator_for_uri()`) and then simply validate your
+schema against it.
+
+
+```ruby
+require "json-schema"
+
+schema = {
+  "type" => "object",
+  "properties" => {
+    "a" => {"type" => "integer"}
+  }
+}
+
+metaschema = JSON::Validator.validator_for_name("draft4").metaschema
+# => true
+JSON::Validator.validate(metaschema, schema)
 ```
 
 Controlling Remote Schema Reading

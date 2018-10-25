@@ -2,8 +2,8 @@
 require File.expand_path('../support/test_helper', __FILE__)
 
 class Draft4Test < Minitest::Test
-  def schema_version
-    :draft4
+  def validation_errors(schema, data, options)
+    super(schema, data, :version => :draft4)
   end
 
   def exclusive_minimum
@@ -282,6 +282,20 @@ class Draft4Test < Minitest::Test
 
     assert_valid schema, {"a" => 5, "b" => {"b" => {"a" => 1}}}
     refute_valid schema, {"a" => 5, "b" => {"b" => {"a" => 'taco'}}}
+  end
+
+  def test_property_named_ref
+    schema = {
+      "$schema" => "http://json-schema.org/draft-04/schema#",
+      "properties" => {
+        "$ref" => {
+          "type" => "integer"
+        }
+      }
+    }
+
+    assert_valid schema, { "$ref" => 1 }
+    refute_valid schema, { "$ref" => "#" }
   end
 
   def test_format_datetime

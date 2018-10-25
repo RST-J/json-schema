@@ -12,15 +12,16 @@ class ExtendedSchemaTest < Minitest::Test
     end
   end
 
-  class ExtendedSchema < JSON::Schema::Validator
+  class ExtendedSchema < JSON::Schema::Draft3
     def initialize
       super
-      extend_schema_definition("http://json-schema.org/draft-03/schema#")
       @attributes["bitwise-and"] = BitwiseAndAttribute
+      @names = ["http://test.com/test.json"]
       @uri = Addressable::URI.parse("http://test.com/test.json")
+      @names = ["http://test.com/test.json"]
     end
 
-    JSON::Validator.register_validator(self.new)
+    JSON::Validator.register_validator(ExtendedSchema.new)
   end
 
   def test_extended_schema_validation
@@ -44,7 +45,6 @@ class ExtendedSchemaTest < Minitest::Test
   def test_unextended_schema
     # Verify that using the original schema disregards the `bitwise-and` property
     schema = {
-      "$schema" => "http://json-schema.org/draft-03/schema#",
       "properties" => {
         "a" => {
           "bitwise-and" => 1
